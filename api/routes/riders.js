@@ -1,13 +1,12 @@
 const express = require('express');
-const bcrypt = require('bcrypt');
 const httpCodes = require('http-codes');
 const _ = require('lodash');
 const { RiderModel, validateRider, validFavsRider  } = require('../models/riderModel');
 const { authToken } = require('../middleware/authToken');
 const { InstructorModel } = require('../models/instructorModel');
+const { getEncryptedPassword } = require('../helpers/password');
 
 const router = express.Router();
-const saltRounds = 10;
 
 // sign in
 router.get('/me', authToken, async(req, res) => {
@@ -29,8 +28,7 @@ router.post('/', async(req, res) => {
   };
   // Password encryption
   const rider = new RiderModel(req.body);
-  const salt = await bcrypt.genSalt(saltRounds);
-  rider.password = await bcrypt.hash(rider.password, salt);
+  rider.password = await getEncryptedPassword(rider.password);
   try {
     await rider.save();
   } catch (error) {
@@ -41,15 +39,16 @@ router.post('/', async(req, res) => {
 });
 
 // update rider
-router.put('/', authToken, (req, res) => {
+router.put('/', authToken, async (req, res) => {
   const validData = validateRider(req.body);
   if (validData.error) {
     return res.status(httpCodes.BAD_REQUEST).json(validData.error.details);
   }
 
   try {
-    const riderData = RiderModel.updateOne({ _id: req.body._id }, req.body);
-    console.log(riderData);
+    const encryptedPassword = await getEncryptedPassword(req.body.password);
+    const riderWithEncryptedPassword = Object.assign({}, req.body, { password: encryptedPassword });
+    const riderData = await RiderModel.updateOne({ _id: req.body._id }, riderWithEncryptedPassword);
     res.status(httpCodes.OK).json(riderData);
   } catch(err) {
     return res.status(httpCodes.BAD_REQUEST).json(err);
