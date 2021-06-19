@@ -8,7 +8,7 @@ const { getEncryptedPassword } = require('../helpers/password');
 
 const router = express.Router();
 
-// sign in
+// get one rider
 router.get('/me', authToken, async(req, res) => {
   const riderData = await RiderModel.findOne({ _id: req.userContext }, { password: 0 });  
   res.json(riderData);
